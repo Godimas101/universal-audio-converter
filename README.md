@@ -6,11 +6,11 @@
 
 A Windows toolset for the full Space Engineers audio workflow: convert sounds, clean them up, and generate the SBC files needed to actually use them in-game. It’s built for the very common journey from “random sound effect on disk” to “working mod asset that doesn’t explode on contact.”
 
-If you just want the app, grab the latest build from the [GitHub Releases page](https://github.com/Godimas101/universal-audio-converter/releases).
+If you just want the app, grab the latest build from the [GitHub Releases page](https://github.com/Godimas101/universal-audio-converter/releases/latest).
 
 ## 🚀 Quick Start
 
-1. Download `SE Audio Converter.exe` from Releases
+1. Download `SE Audio Converter.exe` from the [latest release](https://github.com/Godimas101/universal-audio-converter/releases/latest)
 2. Place `ffmpeg.exe` next to it
 3. Add `xWMAEncode.exe` too if you want `.xwm` output
 4. Use the built-in tools to convert, edit, and generate `Audio.sbc` / `SoundBlock.sbc`
