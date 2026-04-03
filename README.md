@@ -15,7 +15,7 @@ If you just want the app, grab the latest build from the [GitHub Releases page](
 3. Add `xWMAEncode.exe` too if you want `.xwm` output
 4. Use the built-in tools to convert, edit, and generate `Audio.sbc` / `SoundBlock.sbc`
 
-![SE Audio Converter screenshot](audio_converter.png)
+![SE Audio Converter screenshot](https://i.imgur.com/sem8z0T.png)
 
 ## ✨ Features
 
