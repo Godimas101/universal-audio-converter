@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://capsule-render.vercel.app/api?type=waving&height=170&color=0:1F2937,45:D97706,100:F59E0B&text=Universal%20Audio%20Converter&fontColor=ffffff&fontAlignY=35&fontSize=32&desc=Space%20Engineers%20audio%20conversion,%20editing,%20and%20SBC%20prep&descAlignY=57&descSize=18" />
+  <img src="https://capsule-render.vercel.app/api?type=waving&height=200&color=0:1F2937,45:D97706,100:F59E0B&text=Universal%20Audio%20Converter&fontColor=ffffff&fontAlignY=42&fontSize=30&desc=Space%20Engineers%20audio%20conversion,%20editing,%20and%20SBC%20prep&descAlignY=68&descSize=17" />
 </p>
 
 > **"Because audio modding is already weird enough without fighting file formats, sample rates, and surprise stereo issues."**
