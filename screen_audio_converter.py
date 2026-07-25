@@ -68,16 +68,33 @@ def check_xwmaencode() -> tuple[bool, str]:
 # Conversion logic
 # ---------------------------------------------------------------------------
 
+# Guard against a hung encoder freezing the worker thread indefinitely.
+_CONVERT_TIMEOUT = 300   # seconds
+
+
+def _tool_error(result) -> str:
+    """Build a useful message from the last few non-empty output lines."""
+    for stream in (result.stderr, result.stdout):
+        if stream:
+            lines = [ln for ln in stream.splitlines() if ln.strip()]
+            if lines:
+                return " | ".join(lines[-3:])
+    return "conversion failed"
+
+
 def convert_to_wav(input_path: Path, output_path: Path, ffmpeg: str) -> None:
     """Convert any audio file to 16-bit PCM WAV at 44100 Hz via ffmpeg."""
-    result = subprocess.run(
-        [ffmpeg, "-y", "-i", str(input_path),
-         "-ar", "44100", "-sample_fmt", "s16",
-         str(output_path)],
-        capture_output=True, text=True,
-    )
+    try:
+        result = subprocess.run(
+            [ffmpeg, "-y", "-i", str(input_path),
+             "-ar", "44100", "-sample_fmt", "s16",
+             str(output_path)],
+            capture_output=True, text=True, timeout=_CONVERT_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(f"ffmpeg timed out after {_CONVERT_TIMEOUT}s")
     if result.returncode != 0:
-        raise RuntimeError(result.stderr.splitlines()[-1] if result.stderr else "ffmpeg failed")
+        raise RuntimeError(_tool_error(result))
 
 
 def convert_to_xwm(input_path: Path, output_path: Path,
@@ -86,16 +103,15 @@ def convert_to_xwm(input_path: Path, output_path: Path,
     with tempfile.TemporaryDirectory() as tmp:
         wav_path = Path(tmp) / (input_path.stem + "_tmp.wav")
         convert_to_wav(input_path, wav_path, ffmpeg)
-        result = subprocess.run(
-            [xwmaencode, str(wav_path), str(output_path)],
-            capture_output=True, text=True,
-        )
-        if result.returncode != 0:
-            raise RuntimeError(
-                result.stderr.splitlines()[-1] if result.stderr
-                else result.stdout.splitlines()[-1] if result.stdout
-                else "xWMAEncode failed"
+        try:
+            result = subprocess.run(
+                [xwmaencode, str(wav_path), str(output_path)],
+                capture_output=True, text=True, timeout=_CONVERT_TIMEOUT,
             )
+        except subprocess.TimeoutExpired:
+            raise RuntimeError(f"xWMAEncode timed out after {_CONVERT_TIMEOUT}s")
+        if result.returncode != 0:
+            raise RuntimeError(_tool_error(result))
 
 
 # ---------------------------------------------------------------------------
@@ -112,6 +128,7 @@ class ConverterScreen(ttk.Frame):
         self._out_folder: Path | None = None
         self._converting              = False
         self._previewing              = False
+        self._play_gen                = 0
         self._q: queue.Queue          = queue.Queue()
 
         self._ffmpeg_ok,    self._ffmpeg_path    = check_ffmpeg()
@@ -119,6 +136,28 @@ class ConverterScreen(ttk.Frame):
 
         self._build_ui()
         self._log_startup_info()
+        self._update_convert_state()
+        self._bind_keys()
+
+    def _bind_keys(self):
+        T.bind_shortcuts(self, {
+            "<Control-o>": self._on_select,
+            "<Return>":    self._on_convert,
+            "<KP_Enter>":  self._on_convert,
+            "<Escape>":    lambda: self._app.show_screen("home"),
+        })
+
+    def _on_info(self):
+        T.show_shortcuts(
+            self.winfo_toplevel(),
+            "Audio Converter — Shortcuts",
+            [
+                ("Ctrl + O", "Add audio files."),
+                ("Enter",    "Start converting."),
+                ("Esc",      "Back to the home screen."),
+                ("F1",       "Open the online help / readme."),
+            ],
+        )
 
     # -----------------------------------------------------------------------
     # UI
@@ -135,6 +174,7 @@ class ConverterScreen(ttk.Frame):
             subtitle="Convert any audio format to WAV or XWM.",
             back_cb=lambda: self._app.show_screen("home"),
             note=f"Supported input: {ext_list}",
+            info_cb=self._on_info,
         )
         T.separator(self, pady=(8, 8))
 
@@ -292,7 +332,7 @@ class ConverterScreen(ttk.Frame):
         tk.Button(log_hdr, text="CLEAR LOG", command=self._clear_log,
                   bg=T.PANEL, fg=T.MUTED,
                   activebackground=T.HOVER, activeforeground=T.TEXT,
-                  font=("Courier New", 8), relief="flat", bd=0,
+                  font=("Segoe UI", 8), relief="flat", bd=0,
                   cursor="hand2").pack(side="right")
 
         self._log_text = T.log_text_widget(log_frame)
@@ -328,10 +368,12 @@ class ConverterScreen(ttk.Frame):
             return
         path = self._files[idx[0]]
         self._previewing = True
+        self._play_gen += 1
+        gen = self._play_gen
         self._preview_btn.config(text="\u25a0 STOP")
-        threading.Thread(target=self._preview_thread, args=(path,), daemon=True).start()
+        threading.Thread(target=self._preview_thread, args=(path, gen), daemon=True).start()
 
-    def _preview_thread(self, path: Path):
+    def _preview_thread(self, path: Path, gen: int):
         import wave, numpy as np
         tmp_path = None
         try:
@@ -342,10 +384,14 @@ class ConverterScreen(ttk.Frame):
                 tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
                 tmp.close()
                 tmp_path = tmp.name
-                r = subprocess.run(
-                    [self._ffmpeg_path, "-y", "-i", str(path), tmp_path],
-                    capture_output=True,
-                )
+                try:
+                    r = subprocess.run(
+                        [self._ffmpeg_path, "-y", "-i", str(path), tmp_path],
+                        capture_output=True, timeout=120,
+                    )
+                except subprocess.TimeoutExpired:
+                    self._q.put(("log", "Preview: decoding timed out.", "error"))
+                    return
                 if r.returncode != 0:
                     self._q.put(("log", "Preview: could not decode file.", "error"))
                     return
@@ -370,7 +416,9 @@ class ConverterScreen(ttk.Frame):
             self._q.put(("log", f"Preview error: {exc}", "error"))
         finally:
             self._previewing = False
-            self.after(0, lambda: self._preview_btn.config(text="\u25b6 PLAY"))
+            # Only reset the button if no newer preview has started meanwhile.
+            if gen == self._play_gen:
+                self.after(0, lambda: self._preview_btn.config(text="\u25b6 PLAY"))
             if tmp_path:
                 try:
                     Path(tmp_path).unlink(missing_ok=True)
@@ -446,6 +494,16 @@ class ConverterScreen(ttk.Frame):
             self._lb_scrollbar.pack_forget()
             self._list_placeholder.place(relx=0.5, rely=0.5, anchor="center")
             self._file_count_var.set("")
+        self._update_convert_state()
+
+    def _update_convert_state(self):
+        """Keep the CONVERT button disabled until it can actually run."""
+        if self._converting:
+            return
+        fmt   = self._format_var.get()
+        ready = (bool(self._files) and self._ffmpeg_ok
+                 and (fmt != "XWM" or self._xwmaenc_ok))
+        T.set_hero_enabled(self._btn_convert, ready)
 
     def _on_format_change(self, _e=None):
         fmt = self._format_var.get()
@@ -461,6 +519,7 @@ class ConverterScreen(ttk.Frame):
             self._xwm_note_lbl.grid(row=1, column=1, sticky="w", pady=(0, 6))
         else:
             self._xwm_note_lbl.grid_remove()
+        self._update_convert_state()
 
     def _on_affix_change(self, _e=None):
         mode = self._affix_mode_var.get()
@@ -527,7 +586,7 @@ class ConverterScreen(ttk.Frame):
 
     def _start(self, fmt, prefix, suffix, out_dir):
         self._converting = True
-        self._btn_convert.config(state="disabled")
+        T.set_hero_enabled(self._btn_convert, False, text="  ⟳  CONVERTING…  ")
         self._progress_var.set(0)
         self._pct_var.set("  0%")
         self._status_var.set("")
@@ -578,7 +637,8 @@ class ConverterScreen(ttk.Frame):
                     self._log(f"Done \u2014 {msg[1]} file(s) converted.", "success")
                     self._log_sep()
                     self._converting = False
-                    self._btn_convert.config(state="normal")
+                    self._btn_convert.config(text="  \u25b6  CONVERT  \u25b6  ")
+                    self._update_convert_state()
                     return
         except queue.Empty:
             pass

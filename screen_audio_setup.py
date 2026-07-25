@@ -63,8 +63,21 @@ class SetupScreen(ttk.Frame):
         super().__init__(parent, style="TFrame")
         self._app = app
         self._build()
+        T.bind_shortcuts(self, {
+            "<Escape>": lambda: self._app.show_screen("home"),
+        })
 
     # -----------------------------------------------------------------------
+
+    def _on_info(self):
+        T.show_shortcuts(
+            self.winfo_toplevel(),
+            "Setup — Shortcuts",
+            [
+                ("Esc", "Back to the home screen."),
+                ("F1",  "Open the online help / readme."),
+            ],
+        )
 
     def _build(self):
         T.build_header(
@@ -72,6 +85,7 @@ class SetupScreen(ttk.Frame):
             title="SETUP  &  REQUIREMENTS",
             subtitle="Tool detection and download instructions.",
             back_cb=lambda: self._app.show_screen("home"),
+            info_cb=self._on_info,
         )
         T.separator(self, pady=(8, 10))
 
@@ -159,7 +173,7 @@ class SetupScreen(ttk.Frame):
                        "(e.g. C:\\SpaceEngineersModSDK\\Tools) and adding that folder to PATH.\n"
                        "This covers both ffmpeg and xWMAEncode in one step."),
                  bg=T.PANEL, fg=T.TEXT,
-                 font=("Courier New", 9), justify="left", anchor="w").pack(anchor="w")
+                 font=("Segoe UI", 9), justify="left", anchor="w").pack(anchor="w")
 
         tk.Frame(path_inner, bg=T.BORDER, height=1).pack(fill="x", pady=(8, 6))
 
@@ -186,7 +200,7 @@ class SetupScreen(ttk.Frame):
         )
         tk.Label(path_inner, text=steps_text,
                  bg=T.PANEL, fg=T.MUTED,
-                 font=("Courier New", 8), justify="left", anchor="w").pack(anchor="w")
+                 font=("Segoe UI", 8), justify="left", anchor="w").pack(anchor="w")
 
         T.separator(parent, pady=(6, 14))
 
@@ -229,14 +243,14 @@ class SetupScreen(ttk.Frame):
             row = tk.Frame(parent, bg=T.BG)
             row.pack(fill="x", padx=24, pady=(0, 6))
             tk.Label(row, text=f" {num} ", bg=T.BLUE, fg=T.TEXT,
-                     font=("Courier New", 9, "bold"),
+                     font=("Segoe UI Semibold", 9),
                      width=3).pack(side="left")
             tk.Label(row, text=f"  {label:<10}",
                      bg=T.BG, fg=T.CYAN,
-                     font=("Courier New", 9, "bold")).pack(side="left")
+                     font=("Segoe UI Semibold", 9)).pack(side="left")
             tk.Label(row, text=text,
                      bg=T.BG, fg=T.TEXT,
-                     font=("Courier New", 9)).pack(side="left")
+                     font=("Segoe UI", 9)).pack(side="left")
 
         tk.Frame(parent, bg=T.BG, height=16).pack()
 
@@ -266,22 +280,22 @@ class SetupScreen(ttk.Frame):
 
         tk.Label(top, text=name,
                  bg=T.PANEL, fg=T.CYAN,
-                 font=("Courier New", 11, "bold")).pack(side="left")
+                 font=("Segoe UI Semibold", 11)).pack(side="left")
 
         badge_color = T.GREEN if status_ok else T.RED
         badge_text  = f"  \u2713 {status_text}  " if status_ok else f"  \u2717 {status_text}  "
         tk.Label(top, text=badge_text,
                  bg=badge_color, fg=T.BG,
-                 font=("Courier New", 8, "bold")).pack(side="left", padx=(10, 0))
+                 font=("Segoe UI Semibold", 8)).pack(side="left", padx=(10, 0))
 
         tk.Label(top, text=f"Required by: {required_by}",
                  bg=T.PANEL, fg=T.MUTED,
-                 font=("Courier New", 8)).pack(side="right")
+                 font=("Segoe UI", 8)).pack(side="right")
 
         # Description
         tk.Label(inner, text=desc,
                  bg=T.PANEL, fg=T.TEXT,
-                 font=("Courier New", 9),
+                 font=("Segoe UI", 9),
                  justify="left", anchor="w").pack(anchor="w", pady=(6, 0))
 
         if not status_ok:
@@ -289,17 +303,17 @@ class SetupScreen(ttk.Frame):
 
             tk.Label(inner, text=install_note,
                      bg=T.PANEL, fg=T.MUTED,
-                     font=("Courier New", 8),
+                     font=("Segoe UI", 8),
                      justify="left", anchor="w").pack(anchor="w")
 
             link_row = tk.Frame(inner, bg=T.PANEL)
             link_row.pack(anchor="w", pady=(6, 0))
             tk.Label(link_row, text="Download: ",
                      bg=T.PANEL, fg=T.MUTED,
-                     font=("Courier New", 8)).pack(side="left")
+                     font=("Segoe UI", 8)).pack(side="left")
             link = tk.Label(link_row, text=download_url,
                             bg=T.PANEL, fg=T.BLUE,
-                            font=("Courier New", 8, "underline"),
+                            font=("Segoe UI", 8, "underline"),
                             cursor="hand2")
             link.pack(side="left")
             import webbrowser
@@ -315,10 +329,10 @@ class SetupScreen(ttk.Frame):
         mark  = "\u2713" if ok else "\u2717"
         tk.Label(row, text=f" {mark} ",
                  bg=color, fg=T.BG,
-                 font=("Courier New", 9, "bold")).pack(side="left")
+                 font=("Segoe UI Semibold", 9)).pack(side="left")
         tk.Label(row, text=f"  {name:<12}",
                  bg=T.BG, fg=T.CYAN,
-                 font=("Courier New", 9, "bold")).pack(side="left")
+                 font=("Segoe UI Semibold", 9)).pack(side="left")
         tk.Label(row, text=desc,
                  bg=T.BG, fg=T.MUTED,
-                 font=("Courier New", 9)).pack(side="left")
+                 font=("Segoe UI", 9)).pack(side="left")

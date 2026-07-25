@@ -269,6 +269,30 @@ class SBCScreen(ttk.Frame):
         self._selected_idx  = None # int | None
 
         self._build_ui()
+        self._update_generate_state()
+        T.bind_shortcuts(self, {
+            "<Control-o>":      self._on_add_files,
+            "<Control-Return>": self._on_generate,
+            "<Delete>":         self._on_remove_file,
+            "<Escape>":         lambda: self._app.show_screen("home"),
+        })
+
+    def _on_info(self):
+        T.show_shortcuts(
+            self.winfo_toplevel(),
+            "SBC Generator — Shortcuts",
+            [
+                ("Ctrl + O",     "Add audio files."),
+                ("Delete",       "Remove the selected file."),
+                ("Ctrl + Enter", "Generate the SBC XML."),
+                ("Esc",          "Back to the home screen."),
+                ("F1",           "Open the online help / readme."),
+            ],
+        )
+
+    def _update_generate_state(self):
+        """Keep GENERATE disabled until at least one file is loaded."""
+        T.set_hero_enabled(self._btn_generate, bool(self._entries))
 
     # =======================================================================
     # UI Construction
@@ -280,6 +304,7 @@ class SBCScreen(ttk.Frame):
             title="AUDIO TO SBC",
             subtitle="Generate AudioDefinition and SoundBlock SBC files for SE mods.",
             back_cb=lambda: self._app.show_screen("home"),
+            info_cb=self._on_info,
         )
         T.separator(self, pady=(8, 8))
 
@@ -317,7 +342,7 @@ class SBCScreen(ttk.Frame):
 
         tk.Label(left, text="\u25a3  AUDIO FILES",
                  bg=T.BG, fg=T.CYAN,
-                 font=("Courier New", 10, "bold")).pack(anchor="w", pady=(0, 4))
+                 font=("Segoe UI Semibold", 10)).pack(anchor="w", pady=(0, 4))
 
         # Drag-drop zone (only shown when tkinterdnd2 is available)
         if _HAS_DND:
@@ -325,7 +350,7 @@ class SBCScreen(ttk.Frame):
                 left,
                 text="Drop audio files here  (.wav  .xwm  .mp3  .ogg  .flac  \u2026)",
                 bg=T.PANEL, fg=T.MUTED,
-                font=("Courier New", 8),
+                font=("Segoe UI", 8),
                 relief="flat", bd=0, pady=10,
                 wraplength=256, justify="center",
                 highlightthickness=1,
@@ -383,7 +408,7 @@ class SBCScreen(ttk.Frame):
         self._file_count_var = tk.StringVar(value="No files loaded")
         tk.Label(left, textvariable=self._file_count_var,
                  bg=T.BG, fg=T.MUTED,
-                 font=("Courier New", 8)).pack(anchor="w", pady=(4, 0))
+                 font=("Segoe UI", 8)).pack(anchor="w", pady=(4, 0))
 
     # -----------------------------------------------------------------------
     # Right panel — scrollable settings
@@ -395,7 +420,7 @@ class SBCScreen(ttk.Frame):
 
         tk.Label(right_outer, text="\u25a3  SETTINGS  (selected file)",
                  bg=T.BG, fg=T.CYAN,
-                 font=("Courier New", 10, "bold")).pack(anchor="w", pady=(0, 4))
+                 font=("Segoe UI Semibold", 10)).pack(anchor="w", pady=(0, 4))
 
         canvas = tk.Canvas(right_outer, bg=T.BG, bd=0, highlightthickness=0,
                            height=310)
@@ -430,7 +455,7 @@ class SBCScreen(ttk.Frame):
         self._settings_placeholder = tk.Label(
             parent,
             text="Load a file to adjust its settings.",
-            bg=T.BG, fg=T.MUTED, font=("Courier New", 9))
+            bg=T.BG, fg=T.MUTED, font=("Segoe UI", 9))
         self._settings_placeholder.pack(anchor="w", pady=(8, 0), padx=8)
 
         # ── IDENTITY ────────────────────────────────────────────────────────
@@ -467,13 +492,13 @@ class SBCScreen(ttk.Frame):
         vol_frame = tk.Frame(self._sect_playback, bg=T.BG)
         vol_frame.pack(fill="x", pady=(2, 4), padx=8)
         tk.Label(vol_frame, text="Volume:", bg=T.BG, fg=T.TEXT,
-                 font=("Courier New", 9), width=16, anchor="e").pack(side="left")
+                 font=("Segoe UI", 9), width=16, anchor="e").pack(side="left")
         tk.Scale(
             vol_frame, variable=self._var_volume,
             from_=0.0, to=2.0, resolution=0.05, orient="horizontal",
             length=155, bg=T.BG, fg=T.TEXT,
             activebackground=T.HOVER, troughcolor=T.PANEL,
-            highlightthickness=0, font=("Courier New", 8),
+            highlightthickness=0, font=("Segoe UI", 8),
             showvalue=False,
         ).pack(side="left", padx=(4, 4))
         tk.Entry(
@@ -539,7 +564,7 @@ class SBCScreen(ttk.Frame):
                  text="Copies category, volume, wave type, loop and other\n"
                       "non-identity settings to every file in the list.",
                  bg=T.BG, fg=T.MUTED,
-                 font=("Courier New", 7),
+                 font=("Segoe UI", 7),
                  justify="left").pack(anchor="w", pady=(2, 0))
 
         # Start with settings hidden (no file selected)
@@ -554,7 +579,7 @@ class SBCScreen(ttk.Frame):
         frame.pack(fill="x", pady=(8, 0), padx=4)
         tk.Label(frame, text=f"  {title}",
                  bg=T.BORDER, fg=T.CYAN,
-                 font=("Courier New", 8, "bold"),
+                 font=("Segoe UI Semibold", 8),
                  anchor="w").pack(fill="x", pady=(0, 4))
         return frame
 
@@ -563,7 +588,7 @@ class SBCScreen(ttk.Frame):
         row = tk.Frame(parent, bg=T.BG)
         row.pack(fill="x", pady=(1, 2), padx=8)
         tk.Label(row, text=label, bg=T.BG, fg=T.TEXT,
-                 font=("Courier New", 9), width=16, anchor="e").pack(side="left")
+                 font=("Segoe UI", 9), width=16, anchor="e").pack(side="left")
         tk.Entry(
             row, textvariable=var,
             bg=T.PANEL, fg=T.TEXT, insertbackground=T.CYAN,
@@ -573,7 +598,7 @@ class SBCScreen(ttk.Frame):
         ).pack(side="left", padx=(4, 0), ipady=2)
         if note:
             tk.Label(row, text=note, bg=T.BG, fg=T.MUTED,
-                     font=("Courier New", 7)).pack(side="left", padx=(4, 0))
+                     font=("Segoe UI", 7)).pack(side="left", padx=(4, 0))
         return row
 
     def _make_combo_row(self, parent, label: str, var,
@@ -581,7 +606,7 @@ class SBCScreen(ttk.Frame):
         row = tk.Frame(parent, bg=T.BG)
         row.pack(fill="x", pady=(1, 2), padx=8)
         tk.Label(row, text=label, bg=T.BG, fg=T.TEXT,
-                 font=("Courier New", 9), width=16, anchor="e").pack(side="left")
+                 font=("Segoe UI", 9), width=16, anchor="e").pack(side="left")
         combo = ttk.Combobox(
             row, textvariable=var, values=values,
             state="readonly", width=24, style="SE.TCombobox",
@@ -595,7 +620,7 @@ class SBCScreen(ttk.Frame):
         row = tk.Frame(parent, bg=T.BG)
         row.pack(fill="x", pady=(1, 2), padx=8)
         tk.Label(row, text=label, bg=T.BG, fg=T.TEXT,
-                 font=("Courier New", 9), width=16, anchor="e").pack(side="left")
+                 font=("Segoe UI", 9), width=16, anchor="e").pack(side="left")
         ttk.Checkbutton(row, variable=var,
                         style="SE.TCheckbutton").pack(side="left", padx=(4, 0))
         return row
@@ -628,7 +653,7 @@ class SBCScreen(ttk.Frame):
 
         tk.Label(out_frame, text="\u25a3  OUTPUT",
                  bg=T.BG, fg=T.CYAN,
-                 font=("Courier New", 10, "bold")).pack(anchor="w", pady=(0, 4))
+                 font=("Segoe UI Semibold", 10)).pack(anchor="w", pady=(0, 4))
 
         # Custom tab strip
         tab_strip = tk.Frame(out_frame, bg=T.PANEL)
@@ -651,7 +676,7 @@ class SBCScreen(ttk.Frame):
             parent, text=text, command=command,
             bg=T.PANEL, fg=T.MUTED,
             activebackground=T.HOVER, activeforeground=T.CYAN,
-            font=("Courier New", 9), relief="flat", bd=0,
+            font=("Segoe UI", 9), relief="flat", bd=0,
             padx=12, pady=4, cursor="hand2",
         )
 
@@ -735,6 +760,7 @@ class SBCScreen(ttk.Frame):
             "No files loaded" if count == 0 else
             f"{count} file{'s' if count != 1 else ''} loaded"
         )
+        self._update_generate_state()
 
     def _add_paths(self, paths: list) -> None:
         added = 0

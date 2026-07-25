@@ -281,7 +281,7 @@ class WaveformCanvas(tk.Canvas):
         ch = max(WAVEFORM_HEIGHT, self.winfo_height())
         self.create_text(self.winfo_width() // 2, ch // 2,
                          text="No file loaded — open a WAV file to begin",
-                         fill=T.MUTED, font=("Courier New", 9))
+                         fill=T.MUTED, font=("Segoe UI", 9))
 
     def set_playhead(self, frame: int) -> None:
         if self._n_frames <= 0:
@@ -454,7 +454,7 @@ class WaveformCanvas(tk.Canvas):
         if self._samples is None or self._n_frames == 0:
             self.create_text(w // 2, h // 2,
                              text="No file loaded",
-                             fill=T.MUTED, font=("Courier New", 9))
+                             fill=T.MUTED, font=("Segoe UI", 9))
             return
 
         # Compute visible frame range based on zoom/scroll
@@ -559,6 +559,9 @@ class EditorScreen(ttk.Frame):
         self._play_start_frame: int   = 0
         self._play_start_time:  float = 0.0  # time.time() at play start
         self._play_region_frames: int = 0    # length of playing region
+        self._pause_frame             = None  # frame to resume from, or None
+        self._pause_end               = None  # end frame of the paused region
+        self._last_toggle: float      = 0.0   # debounce for the play/pause toggle
         self._ref_window              = None
         self._dirty:     bool         = False
 
@@ -566,6 +569,16 @@ class EditorScreen(ttk.Frame):
 
         # Guard X-button close while unsaved edits are present
         self.winfo_toplevel().protocol("WM_DELETE_WINDOW", self._on_close_window)
+
+        T.bind_shortcuts(self, {
+            "<space>":           self._toggle_play,
+            "<Control-z>":       self._on_undo,
+            "<Control-o>":       self._on_open,
+            "<Control-s>":       self._on_save,
+            "<Control-Shift-S>": self._on_save_as,
+            "<Control-a>":       self._on_select_all,
+            "<Escape>":          self._on_clear_selection,
+        })
 
         if not _HAS_NUMPY:
             self._log("numpy not installed \u2014 install it to use the Audio Editor.", "error")
@@ -583,6 +596,7 @@ class EditorScreen(ttk.Frame):
             title="AUDIO EDITOR",
             subtitle="Open a WAV file, edit it, and save.",
             back_cb=self._on_back,
+            info_cb=self._on_edit_info,
         )
         T.separator(self, pady=(8, 6))
 
@@ -609,7 +623,7 @@ class EditorScreen(ttk.Frame):
         self._ch_btn_frame.pack_propagate(False)
         # (packed/forgotten in _update_channel_ui — not packed here)
 
-        _btn_kw = dict(font=("Courier New", 10, "bold"), bd=0, relief="flat",
+        _btn_kw = dict(font=("Segoe UI Semibold", 10), bd=0, relief="flat",
                        cursor="hand2", activeforeground=T.TEXT)
         self._btn_ch_r = tk.Button(self._ch_btn_frame, text="R",
                                    command=lambda: self._toggle_channel(1), **_btn_kw)
@@ -661,7 +675,7 @@ class EditorScreen(ttk.Frame):
             play_bar = ttk.Frame(self, style="TFrame")
             play_bar.pack(fill="x", padx=16, pady=(0, 0))
 
-            self._btn_play = self._se_btn(play_bar, "\u25b6  PLAY",  self._on_play)
+            self._btn_play = self._se_btn(play_bar, "\u25b6  PLAY",  self._toggle_play)
             self._btn_play.pack(side="left", padx=(0, 6))
             self._se_btn(play_bar, "\u25a0  STOP", self._on_stop).pack(side="left", padx=(0, 16))
             self._se_btn(play_bar, "|\u25b6|  PLAY SELECTION", self._on_play_selection).pack(side="left", padx=(0, 6))
@@ -691,7 +705,7 @@ class EditorScreen(ttk.Frame):
                   command=self._clear_log,
                   bg=T.PANEL, fg=T.MUTED,
                   activebackground=T.HOVER, activeforeground=T.TEXT,
-                  font=("Courier New", 8), relief="flat", bd=0,
+                  font=("Segoe UI", 8), relief="flat", bd=0,
                   cursor="hand2").pack(side="right")
 
         self._log_text = T.log_text_widget(log_frame)
@@ -707,11 +721,7 @@ class EditorScreen(ttk.Frame):
         toolbar = tk.Frame(self, bg=T.BG)
         toolbar.pack(fill="x", padx=16, pady=(0, 0))
 
-        # Info button — far right, top-anchored to sit level with the Clip row
-        ttk.Button(toolbar, text="\u24d8",
-                   command=self._on_edit_info,
-                   style="Info.TButton").pack(side="right", anchor="n", pady=2)
-
+        # (Help / ⓘ button now lives in the header, next to Back.)
         grid = tk.Frame(toolbar, bg=T.BG)
         grid.pack(side="left", fill="x", expand=True)
         grid.columnconfigure(0, minsize=80)   # label column — fixed width
@@ -720,7 +730,7 @@ class EditorScreen(ttk.Frame):
         def _lbl(row, text):
             tk.Label(grid, text=text,
                      bg=T.BG, fg=T.MUTED,
-                     font=("Courier New", 7, "bold"),
+                     font=("Segoe UI Semibold", 8),
                      anchor="e").grid(row=row, column=0,
                                       sticky="e", padx=(0, 8), pady=2)
 
@@ -945,6 +955,7 @@ class EditorScreen(ttk.Frame):
     def _on_selection_change(self, start_frame, end_frame):
         self._sel_start = start_frame
         self._sel_end   = end_frame
+        self._pause_frame = None   # selection moved — drop any paused position
         self._update_info()
 
     # -----------------------------------------------------------------------
@@ -1037,10 +1048,56 @@ class EditorScreen(ttk.Frame):
     # Playback
     # -----------------------------------------------------------------------
 
+    def _toggle_play(self):
+        """Space / PLAY button — pause if playing, else play or resume."""
+        import time
+        now = time.time()
+        # Debounce: a focused ttk button fires on key-release while our global
+        # <space> binding fires on key-press — swallow the near-instant repeat.
+        if now - self._last_toggle < 0.18:
+            return
+        self._last_toggle = now
+        if self._playing:
+            self._pause_playback()
+        else:
+            self._resume_or_play()
+
+    def _resume_or_play(self):
+        if not _HAS_SD or self._samples is None:
+            return
+        if (self._pause_frame is not None and self._pause_end
+                and self._pause_frame < self._pause_end):
+            start, end = self._pause_frame, self._pause_end
+        elif self._sel_end > self._sel_start:
+            start, end = self._sel_start, self._sel_end
+        else:
+            start, end = 0, len(self._samples)
+        self._play_region(start, end)
+
+    def _pause_playback(self):
+        import time
+        if not self._playing:
+            return
+        elapsed_frames = int((time.time() - self._play_start_time) * self._sample_rate)
+        end   = self._play_start_frame + self._play_region_frames
+        frame = min(self._play_start_frame + elapsed_frames, end)
+        if _HAS_SD:
+            try:
+                _sd.stop()
+            except Exception:
+                pass
+        self._playing = False
+        self._pause_frame = frame
+        self._pause_end   = end
+        self._waveform.set_playhead(frame)   # leave the playhead where we paused
+        self._set_play_label("▶  PLAY", "Paused")
+
     def _on_play(self):
+        self._pause_frame = None
         self._play_region(0, len(self._samples) if self._samples is not None else 0)
 
     def _on_play_selection(self):
+        self._pause_frame = None
         self._play_region(self._sel_start, self._sel_end)
 
     def _play_region(self, start, end):
@@ -1050,25 +1107,41 @@ class EditorScreen(ttk.Frame):
         region = self._samples[start:end]
         if len(region) == 0:
             return
-        self._on_stop()
+        self._stop_audio()
         try:
             _sd.play(region, self._sample_rate)
             self._playing              = True
             self._play_start_frame     = start
             self._play_start_time      = time.time()
             self._play_region_frames   = len(region)
+            self._set_play_label("▮▮  PAUSE", "Playing")
             self._tick_playhead()
         except Exception as exc:
             self._log(f"Playback error: {exc}", "error")
 
-    def _on_stop(self):
+    def _stop_audio(self):
+        """Stop the audio stream without disturbing pause state."""
         if _HAS_SD:
             try:
                 _sd.stop()
             except Exception:
                 pass
         self._playing = False
+
+    def _on_stop(self):
+        self._stop_audio()
+        self._pause_frame = None
+        self._pause_end   = None
         self._waveform.set_playhead(-1)
+        self._set_play_label("▶  PLAY", "")
+
+    def _set_play_label(self, btn_text, status):
+        # The playback bar only exists when sounddevice is installed.
+        try:
+            self._btn_play.config(text=btn_text)
+            self._playback_var.set(status)
+        except Exception:
+            pass
 
     def _tick_playhead(self):
         import time
@@ -1077,8 +1150,12 @@ class EditorScreen(ttk.Frame):
         elapsed_s      = time.time() - self._play_start_time
         elapsed_frames = int(elapsed_s * self._sample_rate)
         if elapsed_frames >= self._play_region_frames:
+            # Reached the end naturally — return to a clean stopped state
             self._playing = False
+            self._pause_frame = None
+            self._pause_end   = None
             self._waveform.set_playhead(-1)
+            self._set_play_label("▶  PLAY", "")
             return
         self._waveform.set_playhead(self._play_start_frame + elapsed_frames)
         self.after(33, self._tick_playhead)

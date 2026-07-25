@@ -12,10 +12,13 @@ that receives (parent, app) and fills the window.
 
 import sys
 import tkinter as tk
+import webbrowser
 from tkinter import ttk
 from pathlib import Path
 
 import se_audio_theme as T
+
+_HELP_URL = "https://github.com/Godimas101/universal-audio-converter#readme"
 
 # Lazy imports — screen modules are imported on first use to keep startup fast
 _screen_modules: dict[str, object] = {}
@@ -85,14 +88,18 @@ class SEAudioApp(tk.Tk):
 
         self._current_screen = None
 
+        # Global help shortcut (screens add their own via T.bind_shortcuts)
+        self.bind("<F1>", lambda _e: webbrowser.open(_HELP_URL))
+
         self.show_screen("home")
 
     # -----------------------------------------------------------------------
 
     def show_screen(self, name: str) -> None:
         """Destroy the current screen frame and show a new one."""
-        # Destroy previous screen
+        # Destroy previous screen (release its keyboard shortcuts first)
         if self._current_screen is not None:
+            T.unbind_shortcuts(self._current_screen)
             self._current_screen.destroy()
             self._current_screen = None
 
@@ -112,5 +119,31 @@ def main():
     app.mainloop()
 
 
+def _check(outfile: str) -> None:
+    """Headless smoke test used by CI: build the app and every screen without
+    showing a window, then write the result to *outfile* (a windowed exe has no
+    console, so the outcome is written to a file the workflow can read)."""
+    try:
+        app = SEAudioApp()
+        app.withdraw()
+        app.update_idletasks(); app.update()
+        for name in ("setup", "converter", "editor", "sbc", "home"):
+            app.show_screen(name)
+            app.update_idletasks(); app.update()
+        app.destroy()
+        result = "RESULT=OK"
+    except Exception:
+        import traceback
+        result = "RESULT=FAIL\n" + traceback.format_exc()
+    try:
+        with open(outfile, "w", encoding="utf-8") as fh:
+            fh.write(result)
+    except Exception:
+        pass
+
+
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) >= 3 and sys.argv[1] == "--check":
+        _check(sys.argv[2])
+    else:
+        main()

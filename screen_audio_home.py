@@ -23,12 +23,31 @@ class HomeScreen(ttk.Frame):
         self._app = app
         self._supporters_window = None
         self._build()
+        T.bind_shortcuts(self, {
+            "<Key-1>": lambda: self._app.show_screen("setup"),
+            "<Key-2>": lambda: self._app.show_screen("converter"),
+            "<Key-3>": lambda: self._app.show_screen("editor"),
+            "<Key-4>": lambda: self._app.show_screen("sbc"),
+        })
 
     def _open_supporters(self):
         if self._supporters_window and self._supporters_window.winfo_exists():
             self._supporters_window.lift()
             return
         self._supporters_window = T.SupportersWindow(self.winfo_toplevel())
+
+    def _on_info(self):
+        T.show_shortcuts(
+            self.winfo_toplevel(),
+            "Home — Shortcuts",
+            [
+                ("1", "Setup & Requirements"),
+                ("2", "Audio Converter"),
+                ("3", "Audio Editor"),
+                ("4", "SBC Generator"),
+                ("F1", "Open the online help / readme."),
+            ],
+        )
 
     # -----------------------------------------------------------------------
 
@@ -50,7 +69,7 @@ class HomeScreen(ttk.Frame):
             warn_text,
             text="IMPORTANT:  Space Engineers sound files must be MONO.",
             bg=T.PANEL, fg=T.ORANGE,
-            font=("Courier New", 9, "bold"),
+            font=("Segoe UI", 9, "bold"),
             anchor="w",
         ).pack(anchor="w")
 
@@ -58,7 +77,7 @@ class HomeScreen(ttk.Frame):
             warn_text,
             text="Use the Audio Editor (Stereo \u2192 Mono) before converting. Stereo files will play left-channel only in-game.",
             bg=T.PANEL, fg=T.MUTED,
-            font=("Courier New", 9),
+            font=("Segoe UI", 9),
             anchor="w",
         ).pack(anchor="w", pady=(2, 0))
 
@@ -67,6 +86,7 @@ class HomeScreen(ttk.Frame):
             self,
             title="UNIVERSAL AUDIO CONVERTER",
             subtitle="Space Engineers custom sound and music mod utilities.",
+            info_cb=self._on_info,
         )
         T.separator(self, pady=(10, 14))
 
@@ -118,11 +138,11 @@ class HomeScreen(ttk.Frame):
 
         tk.Label(footer, text="Made with \u2665 by ",
                  bg=T.BG, fg=T.MUTED,
-                 font=("Courier New", 8)).pack(side="left")
+                 font=("Segoe UI", 8)).pack(side="left")
 
         godimas = tk.Label(footer, text="Godimas",
                            bg=T.BG, fg=T.MUTED,
-                           font=("Courier New", 8, "underline"),
+                           font=("Segoe UI", 8, "underline"),
                            cursor="hand2")
         godimas.pack(side="left")
         godimas.bind("<Button-1>", lambda _e: webbrowser.open(
@@ -132,11 +152,11 @@ class HomeScreen(ttk.Frame):
 
         tk.Label(footer, text=" and ",
                  bg=T.BG, fg=T.MUTED,
-                 font=("Courier New", 8)).pack(side="left")
+                 font=("Segoe UI", 8)).pack(side="left")
 
         claude = tk.Label(footer, text="Claude",
                           bg=T.BG, fg=T.MUTED,
-                          font=("Courier New", 8, "underline"),
+                          font=("Segoe UI", 8, "underline"),
                           cursor="hand2")
         claude.pack(side="left")
         claude.bind("<Button-1>", lambda _e: webbrowser.open("https://claude.ai"))
@@ -148,11 +168,11 @@ class HomeScreen(ttk.Frame):
 
         tk.Label(patreon_row, text="Powered by our ",
                  bg=T.BG, fg=T.MUTED,
-                 font=("Courier New", 8)).pack(side="left")
+                 font=("Segoe UI", 8)).pack(side="left")
 
         supporters_lbl = tk.Label(patreon_row, text="Supporters",
                                   bg=T.BG, fg=T.MUTED,
-                                  font=("Courier New", 8, "underline"),
+                                  font=("Segoe UI", 8, "underline"),
                                   cursor="hand2")
         supporters_lbl.pack(side="left")
         supporters_lbl.bind("<Button-1>", lambda _e: self._open_supporters())
@@ -161,11 +181,11 @@ class HomeScreen(ttk.Frame):
 
         tk.Label(patreon_row, text=" on ",
                  bg=T.BG, fg=T.MUTED,
-                 font=("Courier New", 8)).pack(side="left")
+                 font=("Segoe UI", 8)).pack(side="left")
 
         patreon_lbl = tk.Label(patreon_row, text="Patreon",
                                bg=T.BG, fg=T.MUTED,
-                               font=("Courier New", 8, "underline"),
+                               font=("Segoe UI", 8, "underline"),
                                cursor="hand2")
         patreon_lbl.pack(side="left")
         patreon_lbl.bind("<Button-1>", lambda _e: webbrowser.open(
@@ -173,7 +193,11 @@ class HomeScreen(ttk.Frame):
         patreon_lbl.bind("<Enter>", lambda _e: patreon_lbl.config(fg=T.CYAN))
         patreon_lbl.bind("<Leave>", lambda _e: patreon_lbl.config(fg=T.MUTED))
 
-        ttk.Label(self, text="v1.1  \u00b7  SE Audio Converter",
+        bug_row = tk.Frame(self, bg=T.BG)
+        bug_row.pack(anchor="center", pady=(6, 2))
+        T.bug_link(bug_row, bg=T.BG).pack()
+
+        ttk.Label(self, text="v1.2.0  \u00b7  SE Audio Converter",
                   style="Muted.TLabel").pack(anchor="center", pady=(0, 10))
 
     # -----------------------------------------------------------------------
@@ -203,13 +227,13 @@ class HomeScreen(ttk.Frame):
 
         title_lbl = tk.Label(text_frame, text=title,
                              bg=T.PANEL, fg=T.CYAN,
-                             font=("Courier New", 11, "bold"),
+                             font=("Segoe UI", 11, "bold"),
                              anchor="w")
         title_lbl.pack(anchor="w")
 
         desc_lbl = tk.Label(text_frame, text=desc,
                             bg=T.PANEL, fg=T.MUTED,
-                            font=("Courier New", 9),
+                            font=("Segoe UI", 9),
                             anchor="w", justify="left")
         desc_lbl.pack(anchor="w", pady=(2, 0))
 
