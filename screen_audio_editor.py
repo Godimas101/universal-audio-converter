@@ -561,23 +561,26 @@ class EditorScreen(ttk.Frame):
         self._play_region_frames: int = 0    # length of playing region
         self._pause_frame             = None  # frame to resume from, or None
         self._pause_end               = None  # end frame of the paused region
-        self._last_toggle: float      = 0.0   # debounce for the play/pause toggle
+        self._space_held              = False # true while Space is down (ignore repeats)
         self._ref_window              = None
         self._dirty:     bool         = False
 
         self._build_ui()
+        # Space = play/pause everywhere: stop any focused button from eating it
+        self._bind_space_on_buttons(self)
 
         # Guard X-button close while unsaved edits are present
         self.winfo_toplevel().protocol("WM_DELETE_WINDOW", self._on_close_window)
 
         T.bind_shortcuts(self, {
-            "<space>":           self._toggle_play,
-            "<Control-z>":       self._on_undo,
-            "<Control-o>":       self._on_open,
-            "<Control-s>":       self._on_save,
-            "<Control-Shift-S>": self._on_save_as,
-            "<Control-a>":       self._on_select_all,
-            "<Escape>":          self._on_clear_selection,
+            "<space>":            self._on_space,
+            "<KeyRelease-space>": self._on_space_up,
+            "<Control-z>":        self._on_undo,
+            "<Control-o>":        self._on_open,
+            "<Control-s>":        self._on_save,
+            "<Control-Shift-S>":  self._on_save_as,
+            "<Control-a>":        self._on_select_all,
+            "<Escape>":           self._on_clear_selection,
         })
 
         if not _HAS_NUMPY:
@@ -1048,15 +1051,37 @@ class EditorScreen(ttk.Frame):
     # Playback
     # -----------------------------------------------------------------------
 
-    def _toggle_play(self):
-        """Space / PLAY button — pause if playing, else play or resume."""
-        import time
-        now = time.time()
-        # Debounce: a focused ttk button fires on key-release while our global
-        # <space> binding fires on key-press — swallow the near-instant repeat.
-        if now - self._last_toggle < 0.18:
+    def _on_space(self):
+        """Space pressed — toggle once per physical press (ignore auto-repeat)."""
+        if self._space_held:
             return
-        self._last_toggle = now
+        self._space_held = True
+        self._toggle_play()
+
+    def _on_space_up(self):
+        self._space_held = False
+
+    def _btn_space(self, _e):
+        # The focused PLAY button handles Space itself and swallows it, so it
+        # can't fire twice — once here and once via the global Space shortcut.
+        self._on_space()
+        return "break"
+
+    def _btn_space_up(self, _e):
+        self._on_space_up()
+        return "break"
+
+    def _bind_space_on_buttons(self, widget):
+        """Route Space to play/pause on every button, so a focused button
+        (OPEN, SAVE, an edit op…) can't fire its own action on the spacebar."""
+        for child in widget.winfo_children():
+            if isinstance(child, (ttk.Button, tk.Button)):
+                child.bind("<KeyPress-space>",   self._btn_space)
+                child.bind("<KeyRelease-space>", self._btn_space_up)
+            self._bind_space_on_buttons(child)
+
+    def _toggle_play(self):
+        """Pause if playing, else play or resume from the paused position."""
         if self._playing:
             self._pause_playback()
         else:
@@ -1068,6 +1093,7 @@ class EditorScreen(ttk.Frame):
         if (self._pause_frame is not None and self._pause_end
                 and self._pause_frame < self._pause_end):
             start, end = self._pause_frame, self._pause_end
+            self._log(f"Resumed from {start / self._sample_rate:.2f}s", "muted")
         elif self._sel_end > self._sel_start:
             start, end = self._sel_start, self._sel_end
         else:
@@ -1091,6 +1117,7 @@ class EditorScreen(ttk.Frame):
         self._pause_end   = end
         self._waveform.set_playhead(frame)   # leave the playhead where we paused
         self._set_play_label("▶  PLAY", "Paused")
+        self._log(f"Paused at {frame / self._sample_rate:.2f}s", "muted")
 
     def _on_play(self):
         self._pause_frame = None

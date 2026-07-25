@@ -197,7 +197,7 @@ class HomeScreen(ttk.Frame):
         bug_row.pack(anchor="center", pady=(6, 2))
         T.bug_link(bug_row, bg=T.BG).pack()
 
-        ttk.Label(self, text="v1.2.0  \u00b7  SE Audio Converter",
+        ttk.Label(self, text="v1.2.1  \u00b7  SE Audio Converter",
                   style="Muted.TLabel").pack(anchor="center", pady=(0, 10))
 
     # -----------------------------------------------------------------------

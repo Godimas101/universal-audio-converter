@@ -2,6 +2,11 @@
 
 All notable changes to SE Universal Audio Converter. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.2.1] — 2026-07-25
+
+### Fixed
+- Audio Editor: **Space now reliably plays and pauses** from anywhere in the editor. A focused button (like OPEN) used to swallow the spacebar — so Space would re-open dialogs or only work after clicking Play. Space is now play/pause throughout, and pausing keeps your place so the next press resumes instead of restarting. The edit log shows where you paused and resumed from.
+
 ## [1.2.0] — 2026-07-25
 
 A big look-and-feel and usability refresh. Same tools, same colours — cleaner type, real keyboard shortcuts, and clearer feedback.
