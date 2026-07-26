@@ -17,7 +17,7 @@ a = Analysis(
     ["se_audio_launcher.py"],
     pathex=[],
     binaries=np_binaries + sd_binaries,
-    datas=np_datas + sd_datas,
+    datas=np_datas + sd_datas + [("VERSION", ".")],
     hiddenimports=np_hiddenimports + sd_hiddenimports + [
         # Screen modules loaded lazily by string name
         "screen_audio_home",
