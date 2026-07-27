@@ -4,6 +4,11 @@ All notable changes to SE Universal Audio Converter. Format follows [Keep a Chan
 
 ## [Unreleased]
 
+## [1.3.1] — 2026-07-26
+
+### Changed
+- The in-app **Report a bug** link now opens a pre-filled bug form with the `bug` label already applied, instead of a blank issue. Added repo issue templates (bug + feature) to back it.
+
 ## [1.3.0] — 2026-07-26
 
 ### Changed

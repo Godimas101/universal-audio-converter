@@ -396,7 +396,8 @@ def unbind_shortcuts(screen) -> None:
 # Hyperlinks / Report a bug
 # ===========================================================================
 
-BUG_REPORT_URL = "https://github.com/Godimas101/universal-audio-converter/issues/new"
+BUG_REPORT_URL = ("https://github.com/Godimas101/universal-audio-converter/issues/new"
+                  "?template=bug_report.md&labels=bug")
 
 
 def hyperlink(parent, text: str, url: str, bg: str = BG, font=None) -> tk.Label:
