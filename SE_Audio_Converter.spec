@@ -1,11 +1,14 @@
 # -*- mode: python ; coding: utf-8 -*-
 #
-# PyInstaller spec for SE Audio Converter
+# PyInstaller spec for SE Audio Converter — ONEDIR build.
 #
-# Build with:
-#   pyinstaller SE_Audio_Converter.spec
+# Onedir (not onefile): the DLLs live in the install folder instead of being
+# unpacked to %TEMP% on every launch. A onefile exe is a single self-extracting
+# blob that trips Windows Defender's packer heuristic (false-positive "virus")
+# and races Defender on the temp extraction; onedir avoids both. The Inno
+# installer packages the whole dist\SE Audio Converter\ folder.
 #
-# Output: dist/SE Audio Converter.exe
+# Build:  pyinstaller SE_Audio_Converter.spec   (or run build.bat)
 
 from PyInstaller.utils.hooks import collect_all
 
@@ -48,21 +51,27 @@ pyz = PYZ(a.pure)
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.datas,
-    [],
+    exclude_binaries=True,        # onedir: binaries go into the COLLECT folder
     name="SE Audio Converter",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=False,
-    upx_exclude=[],
-    runtime_tmpdir=None,
-    icon="icon.ico",
     console=False,      # no console window — GUI only
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon="icon.ico",
+)
+
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.datas,
+    strip=False,
+    upx=False,
+    upx_exclude=[],
+    name="SE Audio Converter",
 )

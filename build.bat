@@ -1,48 +1,41 @@
 @echo off
 :: ============================================================
-:: SE Audio Converter — build script
-:: Produces:  dist\SE Audio Converter.exe
+:: SE Audio Converter — build script (onedir + Inno installer)
+:: Output:  installer\SEAudioConverterSetup-v<VERSION>.exe
 :: ============================================================
+setlocal
+set /p APPVER=<VERSION
 
-echo.
-echo  SE Audio Converter - Build
-echo  ==========================
-echo.
-
-:: Check Python is available
 python --version >nul 2>&1
 if errorlevel 1 (
     echo  ERROR: Python not found. Install Python 3.8+ and add it to PATH.
     pause & exit /b 1
 )
 
-:: Install / upgrade build dependencies
 echo  Installing dependencies...
-pip install --quiet --upgrade --no-warn-script-location numpy sounddevice pyinstaller
+pip install --quiet --upgrade -r requirements.txt pyinstaller
 
-echo.
-echo  Building executable...
-echo.
-
+echo  Building onedir app...
 python -m PyInstaller SE_Audio_Converter.spec --clean --noconfirm
-
 if errorlevel 1 (
-    echo.
     echo  BUILD FAILED. Check the output above for errors.
     pause & exit /b 1
 )
 
+set ISCC=
+for %%p in (
+    "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+    "C:\Program Files\Inno Setup 6\ISCC.exe"
+) do if exist %%p set ISCC=%%p
+
+if "%ISCC%"=="" (
+    echo  Built onedir app: dist\SE Audio Converter\   ^(Inno Setup not found — skipping installer^)
+    pause & exit /b 0
+)
+
+%ISCC% /DAppVer=%APPVER% installer.iss
 echo.
 echo  ============================================================
-echo   Build complete:  dist\SE Audio Converter.exe
+echo   Build complete:  installer\SEAudioConverterSetup-v%APPVER%.exe
 echo  ============================================================
-echo.
-echo  NOTE: The following external tools are NOT bundled.
-echo  Place them next to SE Audio Converter.exe or add to PATH:
-echo.
-echo    ffmpeg.exe       https://ffmpeg.org/download.html
-echo    xWMAEncode.exe   Included in the Space Engineers Mod SDK
-echo                     Find it at: [ModSDK]\Tools\xWMAEncode.exe
-echo                     (Free on Steam - App ID 244860)
-echo.
 pause

@@ -4,6 +4,11 @@ All notable changes to SE Universal Audio Converter. Format follows [Keep a Chan
 
 ## [Unreleased]
 
+## [1.3.0] — 2026-07-26
+
+### Changed
+- **Now ships as an installer, with one-click updates.** The app is built as a onedir bundle (which fixes a Windows Defender false-positive that flagged the old single-exe) and installs per-user — no admin, a Start Menu shortcut, and a clean uninstall. When a newer version exists, the home-screen notice becomes **⬆ Update & restart**: one click downloads it, installs silently, and relaunches the app. Running from source, it still just opens the release page.
+
 ## [1.2.2] — 2026-07-26
 
 ### Added
